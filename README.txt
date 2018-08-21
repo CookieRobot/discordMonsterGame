@@ -1,3 +1,6 @@
+Download a precompiled version at 
+https://cookiegames.itch.io/discord-monster-game?secret=H1rRN94BpuhRbQRMkIHnoxbqE
+
 There are 3 programs within this build
 They are all located in the dist folder
 
