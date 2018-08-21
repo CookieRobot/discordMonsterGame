@@ -1,0 +1,8 @@
+```
+DM commands
+!desc [monsterID] - Gives a description of a monster if you have one
+!index - Lists all monsters you own along with their ID numbers 
+Channel Commands
+!catchmonster - Catches a monster if it is available
+!arena [monsterID] - Send a monster to fight in the arena. Must have a slot open
+```

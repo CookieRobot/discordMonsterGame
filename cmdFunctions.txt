@@ -1,0 +1,44 @@
+set all - use this to set the token, mongo login, database name, encounter channel and battle channel
+get token - A bot token 
+get mongo - mongoDB credentials
+get database - The name of the database you are using for the game
+get e channel - name of the channel you want the encouters to appear in
+get b channel - name of the channel you want the battling to take place
+
+set token - These will show the current value for the setting and request the new value
+set mongo
+set database
+set e channel
+set b channel
+
+get flavors - lists all of the flavor text 
+get flavor type [int id] - lists all of the flavor text that has a certain type
+get flavor [int id] - gets a flavor by their id
+get monsters - lists all of the monster text 
+get monster rarity [int id] - lists all of the flavor text that have a certain rarity
+get monster [int id] - gets a monster by their id
+get arenas - lists all arenas
+get arena [int id] gets an arena by its id
+
+
+add flavor - Will ask you for the flavor type and the desired text
+add monster - Will ask you for a monster name, rarity, description, 
+add arena - Will ask you for coordinates, alignment, and an image of the arena
+
+delete flavor [int id] - These functions will delete an asset from the database
+delete monster [int id] - I recommend avoiding using monster deletion and instead setting its rarity to -1 to remove it. Back up the database if you must use this function. You should really back it up before you do anything though
+delete arena [int id]
+
+edit flavor - These functions will have you reset all of the settings of an asset
+edit monster 
+edit arena
+
+download flavors - These will allow to download a text file of all the data of an asset
+download monsters
+download arenas
+
+upload flavors - Here you can upload a text file used by the download functions
+upload monsters
+upload arenas
+
+test arena - You can use this to generate a sample image of an arena. You must provide arena and monster IDs
