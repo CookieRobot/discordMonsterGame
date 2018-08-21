@@ -133,3 +133,5 @@ helpCommand.txt
 Inside the DIST folder there exists a file called helpCommand.txt
 It can be accessed by users with !help
 you may edit this file if you wish for it to say something else.
+
+If you have any questions tweet me at @CookieRobo
