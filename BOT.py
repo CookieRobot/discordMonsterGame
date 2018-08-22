@@ -11,7 +11,7 @@ from PIL import ImageOps
 #os.chdir('..')
 
 class settings:
-    botToken = "NDQ0NDcwNjQ3NzY3MzAyMTQ1.Ddc38Q.HgM4lhvjm8I1cb372Iw9K8GwVGA"
+    botToken = ""
     mongo = ""
     spawnChannel = ""
     arenaChannel = ""
@@ -572,7 +572,7 @@ async def on_message(message):
 
 
 def UI():
-    #settings.client.run('NDQ0NDcwNjQ3NzY3MzAyMTQ1.Ddc38Q.HgM4lhvjm8I1cb372Iw9K8GwVGA')
+    
     try:
         file = open('settings.txt','r+')
     except FileNotFoundError:
