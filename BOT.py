@@ -6,8 +6,9 @@ import pprint
 import urllib.request
 from PIL import Image
 from PIL import ImageOps
-
-
+import gc
+gc.set_debug(gc.DEBUG_LEAK)
+gc.enable()
 #os.chdir('..')
 
 class settings:
@@ -19,19 +20,16 @@ class settings:
     client = discord.Client()
     helpText = 'helpCommand.txt not found if you see this you should probably tell the bot owner'
     
-    #mongo = pymongo.MongoClient()
 
     mongoDB = pymongo.MongoClient("mongodb+srv://Cookie:Cookie@cluster0-t8vqn.mongodb.net/test?retryWrites=true")
     db = mongoDB[DBname]
-    #coll = db.admin
     flavor = db.flavors
     users = db.users
     monsters = db.monsters
     arenas = db.arenas
     channel = discord.Channel
     arena = discord.Channel
-    #channel = client.get_channel('444469825381859330')
-    #arena = client.get_channel('447892299825938443')
+    
     printVerbose = True
 
 
@@ -83,7 +81,9 @@ def summonRandomMonster():
     monster = monsterList[random.randint(0,monsterList.count()-1)]
     printDetails("Monster ID selected is "+str(monster["monsterID"]))
     printDetails("Monster name selected is "+monster["name"])
-    
+
+    ######
+    monsterList.close()
         
     return monster
 
@@ -140,11 +140,13 @@ def catchMonster(user):
     
     if(userHasMonster):
         printDetails("User already has monster")
+       
         return False
     else:
         printDetails("User caught monster " + str(encounter.monsterID))
         userArray[encounter.monsterID] = True
         settings.users.find_one_and_update({'userID' : int(user.id)},{'$set':{"collection":userArray } })
+        
         return True
     #return true if they caught the monster else return false if they already have it
     
@@ -162,6 +164,8 @@ def parseFlavorText(flavor, userName):
     text = text.replace("[monster]", encounter.monsterName)
     text = text.replace("[user]", userName)
     printDetails(text)
+    #######
+    flavorList.close()
     return text
 
 def parseArenaText(flavor, ATK, DEF, damage):
@@ -279,7 +283,7 @@ def compileArena (arena,monsterA,monsterB,xPos1,yPos1,xPos2,yPos2,halign,valign)
     arena.alpha_composite(A, (int(xFinal1),int(yFinal1)))
     arena.alpha_composite(B, (int(xFinal2),int(yFinal2)))
     #arena.paste(monsterA,(150,100),composite)
-    arena.save("arenaDisplay.png")
+    #arena.save("arenaDisplay.png")
     return arena
 
 def enterArena(userID,monsterID):
@@ -323,6 +327,7 @@ def getMonsterImage(monsterID):
     monster = settings.monsters.find_one({'monsterID': monsterID})
     i = urllib.request.urlopen(monster["monsterImage"])
     image = Image.open(i)
+    i.close()
     return image
 
 def getMonsterImageFile(monsterID,temp):
@@ -357,6 +362,7 @@ async def arenaBattle(client):
         
         arenaImageFile = urllib.request.urlopen(arenaDoc["arenaImage"])
         arenaImage = Image.open(arenaImageFile)
+        arenaImageFile.close()
         
         monsterImage1 = getMonsterImage(arena.monster1)
         monsterImage2 = getMonsterImage(arena.monster2)
@@ -399,7 +405,7 @@ async def arenaBattle(client):
         arena.HP2-=damage
         
         if arena.HP2<1:
-            winner = arena.monsterName2
+            winner = arena.monsterName1
             break
         await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
         
@@ -421,7 +427,7 @@ async def arenaBattle(client):
         await settings.client.edit_message(arena.arenaMessage,new_content= '```'+attackMessage+'```')
         arena.HP1-=damage
         if arena.HP1<1:
-            winner = arena.monsterName1
+            winner = arena.monsterName2
             break
         await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
         await asyncio.sleep(5)
@@ -455,6 +461,11 @@ async def on_ready():
     channelCount = 0
     encounterFound = False
     arenaFound = False
+
+
+    for server in settings.client.servers:
+        for channel in server.channels:
+            print(channel.name)
     for server in settings.client.servers:
         for channel in server.channels:
             if(channel.name == settings.spawnChannel):
@@ -475,6 +486,7 @@ async def on_ready():
     #set help file
     helpFile = open('helpCommand.txt','r')
     settings.helpText = helpFile.read()
+    helpFile.close()
     settings.client.loop.create_task(periodicEvent(settings.client))
     print('Periodic event')
     
@@ -491,11 +503,17 @@ async def on_ready():
 async def periodicEvent(client):
     
     c = settings.client.get_channel('444469825381859330')
-    sleep = 300
+    sleep = 30
     while True:
+        print('@@@ MEMORY LEAK @@@')
+        gc.collect()
+        gc.set_debug(gc.DEBUG_STATS)
+        print('@@@ MEMORY LEAK @@@')
+
         if encounter.monsterID == 0: #summon monster
             monster = summonRandomMonster()
-            sleep = 300
+            
+            sleep = 30
             if monster != None:
                 encounter.monsterID = monster["monsterID"]
                 encounter.monsterRemaining = 3
@@ -509,7 +527,8 @@ async def periodicEvent(client):
                 await settings.client.send_message(c,parseFlavorText(6,''))
 
         elif encounter.monsterID != 0: #remove monster
-            sleep = random.randint(400,2000)
+            #sleep = random.randint(400,2000)
+            sleep = 30
             if encounter.monsterRemaining > 0:
                 await settings.client.edit_message(encounter.message,new_content= parseFlavorText(4,''))
                 encounter.monsterRemaining = 0
@@ -572,7 +591,6 @@ async def on_message(message):
 
 
 def UI():
-    
     try:
         file = open('settings.txt','r+')
     except FileNotFoundError:

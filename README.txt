@@ -1,6 +1,3 @@
-Download a precompiled version at 
-https://cookiegames.itch.io/discord-monster-game?secret=H1rRN94BpuhRbQRMkIHnoxbqE
-
 There are 3 programs within this build
 They are all located in the dist folder
 
@@ -136,5 +133,3 @@ helpCommand.txt
 Inside the DIST folder there exists a file called helpCommand.txt
 It can be accessed by users with !help
 you may edit this file if you wish for it to say something else.
-
-If you have any questions tweet me at @CookieRobo
