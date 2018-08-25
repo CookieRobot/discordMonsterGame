@@ -503,7 +503,7 @@ async def on_ready():
 async def periodicEvent(client):
     
     c = settings.client.get_channel('444469825381859330')
-    sleep = 30
+    sleep = 300
     while True:
         print('@@@ MEMORY LEAK @@@')
         gc.collect()
@@ -513,7 +513,7 @@ async def periodicEvent(client):
         if encounter.monsterID == 0: #summon monster
             monster = summonRandomMonster()
             
-            sleep = 30
+            sleep = 300
             if monster != None:
                 encounter.monsterID = monster["monsterID"]
                 encounter.monsterRemaining = 3
@@ -527,8 +527,8 @@ async def periodicEvent(client):
                 await settings.client.send_message(c,parseFlavorText(6,''))
 
         elif encounter.monsterID != 0: #remove monster
-            #sleep = random.randint(400,2000)
-            sleep = 30
+            sleep = random.randint(400,2000)
+            sleep = 300
             if encounter.monsterRemaining > 0:
                 await settings.client.edit_message(encounter.message,new_content= parseFlavorText(4,''))
                 encounter.monsterRemaining = 0
