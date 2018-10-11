@@ -5,4 +5,5 @@ DM commands
 Channel Commands
 !catchmonster - Catches a monster if it is available
 !arena [monsterID] - Send a monster to fight in the arena. Must have a slot open
+!support [playerNumber] - Help a monster fight in the arena
 ```

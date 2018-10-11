@@ -586,7 +586,7 @@ class Application(tk.Frame):
                 i+=1
         dbResult = None
         if case == 0:
-            print('monsters')
+            print('monster added')
             #validate values
             try:
                 editValues[2] = int(editValues[2])
@@ -595,13 +595,18 @@ class Application(tk.Frame):
             except:
                 dbResult = 'Rarity must be an integer'
         elif case == 1:
-            print('flavors')
+            print('flavor added')
+            
+            
+            dbResult = DBnewFlavor(editValues[2],editValues[1])
             #dbResult = DBeditFlavor (editValues[2], editValues[3], editValues[1])
         elif case == 2:
-            print('arenas')
-            #dbResult = DBeditArena (editValues[2], editValues[3], editValues[4], editValues[5],editValues[6],editValues[7],editValues[8],editValues[1])
+            print('arena added')
+            print(str(editValues[1]))
+            print(str(editValues[2]))
+            dbResult = DBnewArena (editValues[1],editValues[2], editValues[3], editValues[4], editValues[5],editValues[6],editValues[7])
         elif case == 3:
-            print('users')
+            print('user added')
         print(dbResult)
         if dbResult != None:
             #if it gets here then it failed
@@ -658,7 +663,7 @@ class Application(tk.Frame):
             dbResult = DBeditMonster (editValues[2], editValues[3], editValues[4], editValues[5],editValues[1])
         elif case == 1:
             print('flavors')
-            dbResult = DBeditFlavor (editValues[2], editValues[3], editValues[1])
+            dbResult = DBeditFlavor (int(editValues[2]), editValues[3], int(editValues[1]))
         elif case == 2:
             print('arenas')
             dbResult = DBeditArena (editValues[2], editValues[3], editValues[4], editValues[5],editValues[6],editValues[7],editValues[8],editValues[1])
@@ -1349,16 +1354,19 @@ class Application(tk.Frame):
 
                 dbResult = ''
                 if case == 0:
-                    print('monsters')
+                    print('monster edited')
                     dbResult = DBeditMonster (editValues[2], editValues[3], editValues[4], editValues[5],editValues[1])
                 elif case == 1:
-                    print('flavors')
-                    dbResult = DBeditFlavor (editValues[2], editValues[3], editValues[1])
+                    print('flavor edited')
+                    
+                    for e in editValues:
+                        print(str(editValues[e]))
+                    dbResult = DBeditFlavor (int(editValues[2]), editValues[3], int(editValues[1]))
                 elif case == 2:
-                    print('arenas')
+                    print('arena edited')
                     dbResult = DBeditArena (editValues[2], editValues[3], editValues[4], editValues[5],editValues[6],editValues[7],editValues[8],editValues[1])
                 elif case == 3:
-                    print('users')   
+                    print('users edited')   
                 if dbResult != None:
                     success = False
                     print(dbResult)
@@ -1679,7 +1687,7 @@ def editFlavor(n):
     print("Text: "+flavorText)
     
     if(inputConfirm("Are you sure you want to continue? Y/N\n")):
-        DBeditFlavor(flavorType, flavorText,n)
+        DBeditFlavor(int(flavorType), flavorText,int(n))
         return"The document was edited"
         #Might want to look up a validation method for failed documents.
     return "Edit flavor entry cancelled"
@@ -1766,7 +1774,7 @@ def getFlavorDocs():
 def DBnewFlavor(flavorType, flavorText):
     newID = settings.flavors.count()
     try:
-        settings.flavors.insert_one({'id':newID, 'type':flavorType ,'text':flavorText})
+        settings.flavors.insert_one({'id':int(newID), 'type':int(flavorType) ,'text':flavorText})
     except pymongo.errors.ServerSelectionTimeoutError:
         return connectionError()
 
@@ -1782,7 +1790,7 @@ def DBdeleteFlavor(n):
     
 def DBeditFlavor (flavorType, flavorText,n):
     try:
-        settings.flavors.find_and_modify(query={'id':n},update={'id':n,'type':flavorType ,'text':flavorText})
+        settings.flavors.find_and_modify(query={'id':int(n)},update={'id':int(n),'type':int(flavorType) ,'text':flavorText})
     except pymongo.errors.ServerSelectionTimeoutError:
         return connectionError()
 

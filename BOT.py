@@ -4,11 +4,13 @@ import random
 import pymongo
 import pprint
 import urllib.request
+import daemon
 from PIL import Image
 from PIL import ImageOps
+import os 
 import gc
-gc.set_debug(gc.DEBUG_LEAK)
-gc.enable()
+#gc.set_debug(gc.DEBUG_LEAK)
+#gc.enable()
 #os.chdir('..')
 
 class settings:
@@ -38,7 +40,7 @@ class botStatus:
     
 class gameData:
     monsterCount = 0
-    maxRarity = 3
+    maxRarity = 7
 
 class encounter:
     monsterID = 0
@@ -60,6 +62,11 @@ class arena:
     arenaMessage = None
     arenaImage = None
     arenaStatus = None
+    supportQueueOne = {}
+    supportQueueTwo = {}
+    supportQueueOnePos = 0
+    supportQueueTwoPos = 0
+    isActive = False
     
 def printDetails(string):
     if settings.printVerbose:
@@ -174,7 +181,8 @@ def parseArenaText(flavor, ATK, DEF, damage):
     # 9 = miss
     
     
-    
+    print("arena pos 2"+ str(arena.supportQueueTwoPos))
+    print("arena pos 1"+ str(arena.supportQueueOnePos))
     printDetails("Parsing arena text")
     flavorList = settings.flavor.find({"type":flavor})
     textDoc = flavorList[random.randint(0,flavorList.count()-1)]
@@ -183,15 +191,48 @@ def parseArenaText(flavor, ATK, DEF, damage):
     text = text.replace("[DEF]", DEF)
     text = text.replace("[damage]", str(damage))
     printDetails(text)
+    flavorList.close
+    return text
+
+def parseArenaSupportText(userName, ATK, DEF, damage):
+    flavor = 10
+    if damage>0:#attack
+        flavor = 11
+    elif damage<0:#heal
+        flavor = 12
+        damage = -damage
+    printDetails("Parsing arena support text")
+    flavorList = settings.flavor.find({"type":flavor})
+    #check if there are  more than two flavors
+    r = flavorList.count()
+    print("flavor: " +str(flavor))
+    print("flavor count: " + str(r))
+    text = ''
+    if (r>1):
+        textDoc = flavorList[random.randint(0,r-1)]
+        text = textDoc["text"]
+    elif (r==1):
+        textDoc = flavorList[0]
+        text = textDoc["text"]
+    
+    text = text.replace("[ATK]", ATK)
+    text = text.replace("[DEF]", DEF)
+    text = text.replace("[damage]", str(damage))
+    text = text.replace("[user]", userName)
+    printDetails(text)
+    flavorList.close
     return text
 
 
+    
 def describeMonster(userID, monsterID):
     printDetails("Describing monster")
     #check if user has monster
     userDoc = settings.users.find_one({'userID':int(userID)})
+    if userDoc == None:
+        return 'No data found'
     userArray = userDoc["collection"]
-    pprint.pprint(userArray)
+    #pprint.pprint(userArray)
     #Check if the number is past the UserArray sub 1 to get true monster count
     if (len(userArray)-1<int(monsterID)):
         printDetails("Monster out of range")
@@ -289,23 +330,29 @@ def compileArena (arena,monsterA,monsterB,xPos1,yPos1,xPos2,yPos2,halign,valign)
 def enterArena(userID,monsterID):
     printDetails("Arena Entry")
     #first check if it is a valid entry
-    userArray = getMonsterList(userID)
+    userArray = getMonsterList(userID.id)
     if (not userArray[monsterID]):
         return "Invalid Entry"
     #check if arena slot 1 is open
     if arena.monster1 == 0:
         arena.monster1 = monsterID
-        arena.user1 = userID
+        arena.user1 = userID.name
         arena.HP1 = 100
         return "Entry accepted"
     #if not put in slot two
     elif arena.monster2 == 0:
         arena.monster2 = monsterID
-        arena.user2 = userID
+        arena.user2 = userID.name
         arena.HP2 = 100
         #begin an arena coroutine if both slots are filled
         
         settings.client.loop.create_task(arenaBattle(settings.client))
+        #reset support queue
+        arena.supportQueueOne = {}
+        arena.supportQueueTwo = {}
+        arena.supportQueueOnePos = 0
+        arena.supportQueueTwoPos = 0
+        arena.isActive = True
         return "Entry accepted beginning battle!"
     else:
         return "Arena is full"
@@ -346,7 +393,27 @@ def getMonsterName(monsterID):
 def updateArenaStatus(monster1,monster2):
     return '```'+str(monster1)+': '+str(arena.HP1)+' '+str(monster2)+': '+str(arena.HP2)+'```'
 
-
+def userSupport(user,pick):
+    #make sure its actually adding to array
+    print(str(user)+" is supporting " +str(pick))
+    if(int(pick) == 1):
+        
+        if(len(arena.supportQueueOne)>0):
+            for i in arena.supportQueueOne:
+                if user == arena.supportQueueOne[i]:
+                    return "Cannot Support Twice"
+        
+        arena.supportQueueOne[len(arena.supportQueueOne)] = user
+    elif(int(pick) == 2):
+        
+        if(len(arena.supportQueueTwo)>0):
+            for i in arena.supportQueueTwo:
+                if user == arena.supportQueueTwo[i]:
+                    return "Cannot Support Twice"
+        
+        arena.supportQueueTwo[len(arena.supportQueueTwo)] = user
+    else:
+        return "invalid choice"
 
 @asyncio.coroutine
 async def arenaBattle(client):
@@ -376,13 +443,18 @@ async def arenaBattle(client):
         valign = arenaDoc['valign']
         finalArena = compileArena(arenaImage,monsterImage1,monsterImage2,x1,y1,x2,y2,halign,valign)
         finalArena.save('finalArena.png')
+
+        #Match Title
+        arena.monsterName1 = getMonsterName(arena.monster1)
+        arena.monsterName2  = getMonsterName(arena.monster2)
+        arena.arenaMessage = await settings.client.send_message(settings.arena,'```'+arena.user1+" and "+arena.monsterName1+" -VS- "+arena.user1+" and "+arena.monsterName2+'```')
+        
         arenaDisplayMessage = await settings.client.send_file(settings.arena,'finalArena.png')
 
         
         print(settings.arena.name)
         arena.arenaMessage = await settings.client.send_message(settings.arena,'Battle Start!')
-        arena.monsterName1 = getMonsterName(arena.monster1)
-        arena.monsterName2  = getMonsterName(arena.monster2)
+        
         arena.arenaStatus = await settings.client.send_message(settings.arena,updateArenaStatus(arena.monster1,arena.monster2))
         winner = None
        
@@ -390,7 +462,7 @@ async def arenaBattle(client):
         
         
         #player 1 attack message
-        damage = random.randint(0,10)
+        damage = random.randint(0,25)
         attackMessage = parseArenaText(7, arena.monsterName1, arena.monsterName2, damage)
         await settings.client.edit_message(arena.arenaMessage,new_content= '```'+attackMessage+'```')
         await asyncio.sleep(5)
@@ -410,10 +482,27 @@ async def arenaBattle(client):
         await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
         
         await asyncio.sleep(5)
-        #check to kill process
+
+
+        #Support Queue Two
+        if (len(arena.supportQueueTwo)>arena.supportQueueTwoPos):
+            damage = random.randint(-25,25)
+            attackMessage = parseArenaSupportText( arena.supportQueueTwo[arena.supportQueueTwoPos], arena.monsterName2, arena.monsterName1, damage)
+            arena.supportQueueTwoPos+=1
+            await settings.client.edit_message(arena.arenaMessage,new_content= '```'+attackMessage+'```')
+            #calc new hp
+            if (damage>0):
+                arena.HP1-=damage
+            else:
+                arena.HP2-=damage
+            if arena.HP1<1:
+                winner = arena.monsterName2
+                break
+            await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
+            await asyncio.sleep(5)
 
         #player 2 attack message
-        damage = random.randint(0,10)
+        damage = random.randint(0,25)
         attackMessage = parseArenaText(7, arena.monsterName2, arena.monsterName1, damage)
         await settings.client.edit_message(arena.arenaMessage,new_content= '```'+attackMessage+'```')
         await asyncio.sleep(5)
@@ -431,7 +520,23 @@ async def arenaBattle(client):
             break
         await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
         await asyncio.sleep(5)
-        
+
+        #Support Queue One helps player 1
+        if (len(arena.supportQueueOne)>arena.supportQueueOnePos):
+            damage = random.randint(-25,25)
+            attackMessage = parseArenaSupportText( arena.supportQueueOne[arena.supportQueueOnePos], arena.monsterName1, arena.monsterName2, damage)
+            arena.supportQueueOnePos+=1
+            await settings.client.edit_message(arena.arenaMessage,new_content= '```'+attackMessage+'```')
+            #calc new hp
+            if (damage>0):
+                arena.HP2-=damage
+            else:
+                arena.HP1-=damage
+            if arena.HP2<1:
+                winner = arena.monsterName2
+                break
+            await settings.client.edit_message(arena.arenaStatus,new_content= updateArenaStatus(arena.monsterName1,arena.monsterName2))
+            await asyncio.sleep(5)
 
         #declare victory and reset arena
     await settings.client.edit_message(arena.arenaMessage,new_content= '```'+winner+" has emerged victorious!"+'```')
@@ -444,6 +549,11 @@ async def arenaBattle(client):
     arena.monsterName2 = ''
     arena.user2 = 0
     arena.HP2 = 0
+    arena.isActive = False
+    arena.supportQueueOne = {}
+    arena.supportQueueTwo = {}
+    arena.supportQueueOnePos = 0
+    arena.supportQueueTwoPos = 0
     arena.arenaMessage = None
     arena.arenaImage = None
     arena.arenaStatus = None
@@ -457,12 +567,20 @@ async def on_ready():
     print(settings.client.user.name)
     gameData.monsterCount = int(settings.monsters.count({ 'monsterID' : { '$exists' : 'true' } }))
     print("Number of monsters is " + str(gameData.monsterCount ))
+    rarityDoc = settings.monsters.find().sort([('rarity',-1)]).limit(1)
+    highestRarityFound = int(rarityDoc.next()['rarity'])
+    rarityDoc.close();
+    print("Highest rarity is: " + str(highestRarityFound))
+    gameData.maxRarity = highestRarityFound
     #validate channels
     channelCount = 0
     encounterFound = False
     arenaFound = False
-
-
+    
+    #for x in settings.users.find():
+     #   uid = x['userID']
+      #  usr =  await settings.client.get_user_info(uid)
+       # print(usr.name+" " + str(uid))
     for server in settings.client.servers:
         for channel in server.channels:
             print(channel.name)
@@ -502,13 +620,14 @@ async def on_ready():
 @asyncio.coroutine
 async def periodicEvent(client):
     
-    c = settings.client.get_channel('444469825381859330')
+    #c = settings.client.get_channel('444469825381859330')
+    c = settings.channel
     sleep = 300
     while True:
-        print('@@@ MEMORY LEAK @@@')
-        gc.collect()
-        gc.set_debug(gc.DEBUG_STATS)
-        print('@@@ MEMORY LEAK @@@')
+        #print('@@@ MEMORY LEAK @@@')
+        #gc.collect()
+        #gc.set_debug(gc.DEBUG_STATS)
+        #print('@@@ MEMORY LEAK @@@')
 
         if encounter.monsterID == 0: #summon monster
             monster = summonRandomMonster()
@@ -527,8 +646,8 @@ async def periodicEvent(client):
                 await settings.client.send_message(c,parseFlavorText(6,''))
 
         elif encounter.monsterID != 0: #remove monster
-            sleep = random.randint(400,2000)
-            sleep = 300
+            sleep = random.randint(600,5000)
+            print(str(sleep))
             if encounter.monsterRemaining > 0:
                 await settings.client.edit_message(encounter.message,new_content= parseFlavorText(4,''))
                 encounter.monsterRemaining = 0
@@ -546,7 +665,8 @@ async def periodicEvent(client):
     
 @settings.client.event
 async def on_message(message):
-    c = settings.client.get_channel('444469825381859330')
+    #c = settings.client.get_channel('444469825381859330')
+    c = settings.channel
     if message.content.startswith('!desc') and message.channel.is_private:
            
         arg = ''.join(char for char in message.content if char.isdigit())
@@ -558,6 +678,16 @@ async def on_message(message):
         else:
             await settings.client.send_message(message.channel,"Monster not found")
 
+    elif message.content.startswith('!support') :
+           
+        arg = ''.join(char for char in message.content if char.isdigit())
+        
+        if (arena.isActive):
+            userSupport(message.author.name,arg)
+            #await settings.client.send_message(message.channel,"")
+        else:
+            await settings.client.send_message(message.channel,"There is no battle to support!")
+
     elif message.content.startswith('!index') and message.channel.is_private:
                 
         await settings.client.send_message(message.channel,listOwnedMonsters(message.author.id))
@@ -565,7 +695,12 @@ async def on_message(message):
     elif message.content.startswith('!arena') and not message.channel.is_private:
 
         arg = ''.join(char for char in message.content if char.isdigit())
-        await settings.client.send_message(message.channel,enterArena(message.author.id,int(arg)))
+        try:
+            int(arg)
+        except ValueError:
+            await settings.client.send_message(message.channel,"Invalid entry")
+            return
+        await settings.client.send_message(message.channel,enterArena(message.author,int(arg)))
         
     elif message.content.startswith('!help'):
         if message.channel.is_private:
@@ -619,18 +754,18 @@ def UI():
     print('\nMonster Encounter Channel: \n'+ settings.spawnChannel)
     print('\nMonster Battle Channel: \n'+ settings.arenaChannel)
 
-    userInput = input ('\nRun with these settings? Type yes to continue or anything else to exit.')
-    userInput = userInput.lower()
-
-    if (userInput == 'y' or userInput == 'yes'):
-        print('Beginning bot')
-        settings.client.run(settings.botToken)
+    #userInput = input ('\nRun with these settings? Type yes to continue or anything else to exit.')
+    #userInput = userInput.lower()
+    settings.client.run(settings.botToken)
+    #if (userInput == 'y' or userInput == 'yes'):
+        #print('Beginning bot')
+        #settings.client.run(settings.botToken)
     
     print('Goodbye')
     #settings.client.run(settings.botToken)
 
-    
-UI()
+with daemon.DaemonContext():
+    UI()   
 
 
 
